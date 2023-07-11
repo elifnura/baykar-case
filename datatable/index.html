@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="./styles.css"/>
+</head>
+<body>
+
+<div id="country-details" style="display: none;">
+  <h2 id="country-name"></h2>
+  <p id="country-region"></p>
+  <p id="country-population"></p>
+</div>
+
+<div id="clear-filters-container" style="display: none;">
+  <button id="clear-filters">Clear Filters</button>
+</div>
+
+<div id="search-container">
+  <input type="text" id="search-input" placeholder="Search for a country..."/>
+</div>
+
+<div id="table-container">
+  <table id="countries-table">
+    <thead>
+    <tr>
+      <th>Name</th>
+      <th>Region</th>
+      <th>Population</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="pagination-container">
+  <ul id="pagination"></ul>
+</div>
+
+<script src="./jquery-3.7.0.min.js"></script>
+<script>
+    var rawCountries = [];
+    var visibleCountries = [];
+    var itemsPerPage = 15;
+    var currentPage = 1;
+
+    $(document).ready(function () {
+
+        // Display initial page
+        displayTablePage(currentPage);
+
+        // Function to display a specific page
+        function displayTablePage(page) {
+            var startIndex = (page - 1) * itemsPerPage;
+            var endIndex = startIndex + itemsPerPage;
+
+            var tableRows = '';
+            for (var i = startIndex; i < endIndex; i++) {
+                if (visibleCountries[i]) {
+                    tableRows += '<tr data-index="' + i + '">';
+                    tableRows += '<td>' + visibleCountries[i].name + '</td>';
+                    tableRows += '<td>' + visibleCountries[i].region + '</td>';
+                    tableRows += '<td>' + visibleCountries[i].population.toLocaleString() + '</td>';
+                    tableRows += '</tr>';
+                }
+            }
+
+            $('#countries-table tbody').html(tableRows);
+
+            // Update pagination
+            updatePagination(page);
+        }
+
+        // Function to update the pagination
+        function updatePagination(currentPage) {
+            var totalPages = Math.ceil(visibleCountries.length / itemsPerPage);
+            var pagination = '';
+
+            for (var i = 1; i <= totalPages; i++) {
+                var activeClass = (i === currentPage) ? 'active' : '';
+                pagination += '<li class="' + activeClass + '"><a href="#" data-page="' + i + '">' + i + '</a></li>';
+            }
+
+            $('#pagination').html(pagination);
+        }
+
+        // Event handler for pagination links
+        $('#pagination').on('click', 'a', function (e) {
+            e.preventDefault();
+            var page = $(this).data('page');
+            displayTablePage(page);
+        });
+
+        // Event handler for search input
+        $('#search-input').on('input', function () {
+            var searchText = $(this).val().trim().toLowerCase();
+            visibleCountries = rawCountries.filter(function (country) {
+                const countryName = country.name.common.toLowerCase();
+                const countryRegion = country.region.toLowerCase();
+
+                return countryName.includes(searchText) || countryRegion.includes(searchText);
+            }).map(item => ({
+                name: item.name.common,
+                region: item.region,
+                population: item.population,
+
+            }))
+
+            currentPage = 1; // Reset to the first page
+            displayTablePage(currentPage);
+        });
+
+        // Event handler for row click
+        $('#countries-table tbody').on('click', 'tr', function () {
+            var rowIndex = $(this).data('index');
+            var country = visibleCountries[rowIndex];
+
+            // Update country details
+            $('#country-name').text(country.name);
+            $('#country-region').text('Region: ' + country.region);
+            $('#country-population').text('Population: ' + country.population.toLocaleString());
+
+            // Show country details
+            $('#country-details').show();
+        });
+
+        // if localStorage.getItem('rawCountries') isn't available
+        if (!localStorage.getItem('rawCountries')) {
+            $.get(
+                "https://restcountries.com/v3.1/independent?status=true",
+                function (response) {
+                    // Handle the response from the server
+                    localStorage.setItem('rawCountries', JSON.stringify(response));
+                    rawCountries = response;
+                    visibleCountries = response.map((country) => ({
+                        name: country.name.common,
+                        region: country.region,
+                        population: country.population,
+                    }));
+
+                    displayTablePage(currentPage);
+                }
+            );
+        } else {
+            rawCountries = JSON.parse(localStorage.getItem('rawCountries'));
+            visibleCountries = rawCountries.map((country) => ({
+                name: country.name.common,
+                region: country.region,
+                population: country.population,
+            }));
+
+            displayTablePage(currentPage);
+        }
+    });
+</script>
+</body>
+</html>
